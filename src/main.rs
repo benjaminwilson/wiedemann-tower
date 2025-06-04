@@ -10,13 +10,15 @@ fn main() {
     let stdin = io::stdin();
     let mut prev: Option<Vec<bool>> = None;
 
-    println!("Bitstrings represent elements of the Wiedemann tower and must be length a power of 2.");
+    println!(
+        "Bitstrings represent elements of the Wiedemann tower and must be length a power of 2."
+    );
     println!("Examples:");
     println!("T1: 00 = 0, 10 = 1, 01 = X0, 11 = 1 + X0");
     println!("T2: 0000 = 0, 1000 = 1, .., 1010 = 1 + X1, .., 1001 = 1 + X0X1");
     println!("Enter expressions using 0/1, '*', '/', '+', '()', and '_' for the previous result.");
     println!("Type 'exit' or press Ctrl+D to quit.");
-    println!("");
+    println!();
 
     for line in stdin.lock().lines() {
         match line {

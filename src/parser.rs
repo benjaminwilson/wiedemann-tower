@@ -1,6 +1,6 @@
 use std::cmp::max;
 
-use crate::arithmetic::{mul, inv, add};
+use crate::arithmetic::{add, inv, mul};
 
 /// A simple parser for bitstring expressions with AND (&) and OR (|),
 /// parentheses, and “_” as the symbol for the previous result.

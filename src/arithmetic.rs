@@ -13,19 +13,15 @@ pub fn mul(left: &[bool], right: &[bool]) -> Vec<bool> {
     let b = &left[half_n..n];
     let c = &right[0..half_n];
     let d = &right[half_n..n];
+    let ac = mul(a, c);
+    let ad = mul(a, d);
+    let bc = mul(b, c);
+    let bd = mul(b, d);
+    let result_low_bits = add(&ac, &bd);
+    let result_high_bits = add(&ad, &add(&bc, &rot(&bd)));
     let mut result = vec![false; n];
-    let ac = mul(&a, &c);
-    let ad = mul(&a, &d);
-    let bc = mul(&b, &c);
-    let bd = mul(&b, &d);
-    let e = add(&ac, &bd);
-    let f = add(&ad, &add(&bc, &rot(&bd)));
-    for i in 0..half_n {
-        result[i] = e[i];
-    }
-    for i in 0..half_n {
-        result[i + half_n] = f[i];
-    }
+    result[..half_n].copy_from_slice(&result_low_bits[..half_n]);
+    result[half_n..(half_n + half_n)].copy_from_slice(&result_high_bits[..half_n]);
     result
 }
 
@@ -35,24 +31,23 @@ pub fn inv(operand: &[bool]) -> Vec<bool> {
     let n = operand.len();
     assert!(operand.iter().any(|&x| x)); // zero is not invertible
     if n == 1 {
-        return operand.into()
+        return operand.into();
     }
     assert_eq!(n % 2, 0);
     let half_n = n / 2;
     let low_bits = &operand[0..half_n];
     let high_bits = &operand[half_n..n];
-    let mut result = vec![false; n];
     let rot_high_bits = rot(high_bits);
-    let delta = &add(&mul(low_bits, &add(low_bits, &rot_high_bits)), &mul(high_bits, high_bits));
+    let delta = &add(
+        &mul(low_bits, &add(low_bits, &rot_high_bits)),
+        &mul(high_bits, high_bits),
+    );
     let delta_inv = &inv(delta);
     let result_high_bits = mul(delta_inv, high_bits);
     let result_low_bits = mul(delta_inv, &add(low_bits, &rot_high_bits));
-    for i in 0..half_n {
-        result[i] = result_low_bits[i];
-    }
-    for i in 0..half_n {
-        result[i + half_n] = result_high_bits[i];
-    }
+    let mut result = vec![false; n];
+    result[..half_n].copy_from_slice(&result_low_bits[..half_n]);
+    result[half_n..(half_n + half_n)].copy_from_slice(&result_high_bits[..half_n]);
     result
 }
 
@@ -76,21 +71,17 @@ pub fn add(left: &[bool], right: &[bool]) -> Vec<bool> {
 pub fn rot(operand: &[bool]) -> Vec<bool> {
     let n = operand.len();
     if n == 1 {
-        return operand.into()
+        return operand.into();
     }
     assert_eq!(n % 2, 0);
     let half_n = n / 2;
     let low_bits = &operand[0..half_n];
     let high_bits = &operand[half_n..n];
-    let mut result = vec![false; n];
     let result_low_bits = high_bits;
-    let result_high_bits = add(&low_bits, &rot(&high_bits));
-    for i in 0..half_n {
-        result[i] = result_low_bits[i];
-    }
-    for i in 0..half_n {
-        result[half_n + i] = result_high_bits[i];
-    }
+    let result_high_bits = add(low_bits, &rot(high_bits));
+    let mut result = vec![false; n];
+    result[..half_n].copy_from_slice(&result_low_bits[..half_n]);
+    result[half_n..(half_n + half_n)].copy_from_slice(&result_high_bits[..half_n]);
     result
 }
 
@@ -101,11 +92,17 @@ fn test_mul() {
     assert_eq!(mul(&vec![true], &vec![true]), vec![true]);
     // test with longer bitstrings
     // X_0 . (1 + X_0) = 1
-    assert_eq!(mul(&vec![false, true], &vec![true, true]), vec![true, false]);
+    assert_eq!(
+        mul(&vec![false, true], &vec![true, true]),
+        vec![true, false]
+    );
 
     // X2 ^2 = X1X2 + 1
     let x2 = vec![false, false, false, false, true, false, false, false];
-    assert_eq!(mul(&x2, &x2), vec![true, false, false, false, false, false, true, false]);
+    assert_eq!(
+        mul(&x2, &x2),
+        vec![true, false, false, false, false, false, true, false]
+    );
 }
 
 #[test]
@@ -113,13 +110,24 @@ fn test_inv() {
     // test the unique base case
     assert_eq!(inv(&vec![true]), vec![true]);
     // some easy to derive inversions
-    assert_eq!(inv(&vec![false, false, true, false]), vec![false, true, true, false]);
-    assert_eq!(inv(&vec![false, false, false, false, true, false, false, false]), vec![false, false, true, false, true, false, false, false]);
+    assert_eq!(
+        inv(&vec![false, false, true, false]),
+        vec![false, true, true, false]
+    );
+    assert_eq!(
+        inv(&vec![false, false, false, false, true, false, false, false]),
+        vec![false, false, true, false, true, false, false, false]
+    );
     // ensure consistent with multiplication
     // find all (element, inverse) pairs (for nonzero element) over F_16 by brute force
     let mut f16: Vec<Vec<bool>> = vec![];
     for i in 0..(1 << 4) {
-        f16.push(vec![i & 0b1000 != 0, i & 0b0100 != 0, i & 0b0010 != 0, i & 0b0001 != 0]);
+        f16.push(vec![
+            i & 0b1000 != 0,
+            i & 0b0100 != 0,
+            i & 0b0010 != 0,
+            i & 0b0001 != 0,
+        ]);
     }
     let mut elem_and_inv = vec![];
     let one = vec![true, false, false, false];
@@ -134,7 +142,9 @@ fn test_inv() {
         }
     }
     assert_eq!(elem_and_inv.len(), 15);
-    elem_and_inv.iter().for_each(|(elem, inverse)| { assert_eq!(inv(&elem), *inverse); });
+    elem_and_inv.iter().for_each(|(elem, inverse)| {
+        assert_eq!(inv(&elem), *inverse);
+    });
 }
 
 #[test]
@@ -143,7 +153,10 @@ fn test_add() {
     assert_eq!(add(&vec![false], &vec![true]), vec![true]);
     assert_eq!(add(&vec![true], &vec![true]), vec![false]);
     // test with longer bitstrings
-    assert_eq!(add(&vec![false, false], &vec![true, false]), vec![true, false]);
+    assert_eq!(
+        add(&vec![false, false], &vec![true, false]),
+        vec![true, false]
+    );
 }
 
 #[test]
@@ -165,11 +178,20 @@ fn test_rot() {
     // X_1 . 0 = 0
     assert_eq!(rot(&vec![false; 4]), vec![false; 4]);
     // X_1 . 1 = X_1
-    assert_eq!(rot(&vec![true, false, false, false]), vec![false, false, true, false]);
+    assert_eq!(
+        rot(&vec![true, false, false, false]),
+        vec![false, false, true, false]
+    );
 
     // if the high limb is all false, should just interchange high and low limbs
-    assert_eq!(rot(&vec![true, false, false, true, false, false, false, false]), vec![false, false, false, false, true, false, false, true]);
+    assert_eq!(
+        rot(&vec![true, false, false, true, false, false, false, false]),
+        vec![false, false, false, false, true, false, false, true]
+    );
 
     // X2 (X1.X2 + 1) = X1 + X0.X1.X2
-    assert_eq!(rot(&vec![true, false, false, false, false, false, true, false]), vec![false, false, true, false, false, false, false, true]);
+    assert_eq!(
+        rot(&vec![true, false, false, false, false, false, true, false]),
+        vec![false, false, true, false, false, false, false, true]
+    );
 }
