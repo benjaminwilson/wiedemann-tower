@@ -103,6 +103,50 @@ fn test_mul() {
         mul(&x2, &x2),
         vec![true, false, false, false, false, false, true, false]
     );
+
+    // It had better be commutative!
+    let lhs = vec![true, false, false, true, false, false, false, false];
+    let rhs = vec![false, false, true, false, false, false, true, false];
+    assert_eq!(mul(&lhs, &rhs), mul(&rhs, &lhs));
+}
+
+#[test]
+fn test_mul_by_unit_is_permutation() {
+    // test that multiplication by a non-zero element is a permutation
+    // of the field elements
+    let mut f16: Vec<Vec<bool>> = vec![];
+    for i in 0..(1 << 4) {
+        f16.push(vec![
+            i & 0b1000 != 0,
+            i & 0b0100 != 0,
+            i & 0b0010 != 0,
+            i & 0b0001 != 0,
+        ]);
+    }
+    let elem = vec![true, false, true, true];
+    let mut produced = vec![false; f16.len()];
+    for other_elem in &f16 {
+        let product = mul(&elem, &other_elem);
+        let index = f16.iter().position(|x| x == &product).unwrap();
+        produced[index] = true;
+    }
+    // ensure that all elements are produced
+    for s in produced.iter() {
+        assert!(s);
+    }
+}
+
+#[test]
+fn test_distributive() {
+    // test the distributive property of multiplication over addition
+    let a = vec![true, false, false, true];
+    let b = vec![false, true, true, false];
+    let c = vec![true, true, false, false];
+
+    // (a + b) * c == a * c + b * c
+    let left = mul(&add(&a, &b), &c);
+    let right = add(&mul(&a, &c), &mul(&b, &c));
+    assert_eq!(left, right);
 }
 
 #[test]
